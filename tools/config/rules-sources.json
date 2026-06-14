@@ -1,0 +1,65 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-06-15",
+  "sources": [
+    {
+      "id": "yara_php_malware",
+      "name": "YARA PHP Malware Rules",
+      "type": "yara",
+      "url": "https://raw.githubusercontent.com/YARAHQ/yara-forks/main/php_malware.yar",
+      "enabled": true,
+      "convert": true,
+      "severity_map": {
+        "MALWARE": "critical",
+        "WEBSHELL": "critical",
+        "BACKDOOR": "critical",
+        "SUSPICIOUS": "high",
+        "OBFUSCATED": "high",
+        "CRYPTO": "critical",
+        "INFO": "info"
+      }
+    },
+    {
+      "id": "yara_webshells",
+      "name": "YARA Web Shell Rules",
+      "type": "yara",
+      "url": "https://raw.githubusercontent.com/Neo23x0/signature-base/master/yara/webshells.yar",
+      "enabled": true,
+      "convert": true,
+      "severity_map": {
+        "WEBSHELL": "critical",
+        "SHELL": "critical",
+        "BACKDOOR": "critical"
+      }
+    },
+    {
+      "id": "yara_php_exploits",
+      "name": "YARA PHP Exploit Rules",
+      "type": "yara",
+      "url": "https://raw.githubusercontent.com/Neo23x0/signature-base/master/yara/exploit_rules.yar",
+      "enabled": true,
+      "convert": true,
+      "severity_map": {
+        "EXPLOIT": "critical",
+        "CVE": "high",
+        "SUSPICIOUS": "medium"
+      }
+    },
+    {
+      "id": "community_php_malware",
+      "name": "Community PHP Malware Feed",
+      "type": "webguardian_json",
+      "url": "https://raw.githubusercontent.com/webguardian/community-rules/main/php-malware.json",
+      "enabled": false,
+      "convert": false
+    },
+    {
+      "id": "cms_vulnerability_db",
+      "name": "CMS Vulnerability Database",
+      "type": "webguardian_json",
+      "url": "https://raw.githubusercontent.com/webguardian/community-rules/main/cms-vulns.json",
+      "enabled": false,
+      "convert": false
+    }
+  ]
+}

@@ -17,42 +17,117 @@ WebGuardian ships with four pre-built rule sets:
 | `rules/laravel-backdoors.json` | Laravel-specific vulnerabilities | 11 |
 | `rules/generic-threats.json` | General web application threats | 14 |
 
-### Third-Party Rule Source Integration
+### Automated External Rule Updates
 
-WebGuardian supports loading rules from external sources. You can:
+WebGuardian includes a full automation system for fetching, converting, and installing rules from external sources:
 
-1. **Download community rule sets** from security research sources
-2. **Convert YARA rules** to WebGuardian JSON format
-3. **Subscribe to commercial threat intelligence feeds** via automation scripts
+```
+tools/
+├── update-rules.sh           # Main updater (cron-ready)
+├── yara-converter.php        # YARA → WebGuardian JSON converter
+├── alert-on-critical.sh      # Alert notifier for scan results
+└── config/
+    ├── rules-sources.json    # Source registry (YARA, JSON feeds)
+    └── crontab.example       # Cron job templates
+```
 
-Example integration script for third-party rules:
+#### One-Command Update
 
 ```bash
-#!/bin/bash
-# Update rules from external sources
+# Update all enabled sources
+./tools/update-rules.sh
 
-# Example: Convert YARA rules
-curl -s https://raw.githubusercontent.com/YARAHQ/yara-forks/main/php_malware.yar \
-  | php /path/to/webguardian/tools/yara-converter.php \
-  > /etc/webguardian/rules/yara-import.json
+# Check current status
+./tools/update-rules.sh --status
 
-# Example: Download community rules
-curl -s https://example.com/threat-feeds/php-malware-latest.json \
-  > /etc/webguardian/rules/community.json
+# Dry run (see what would happen)
+./tools/update-rules.sh --dry-run
+```
 
-# Run scan with all rules
-php /path/to/webguardian/bin/webguardian scan /var/www/html \
-  --rules=/etc/webguardian/rules
+#### Cron Setup
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add daily update at 3 AM
+0 3 * * * /opt/webguardian/tools/update-rules.sh --quiet >> /var/log/webguardian-update.log 2>&1
+```
+
+### Third-Party Rule Source Integration
+
+WebGuardian supports loading rules from external sources via the automated updater:
+
+1. **YARA rule repositories** — automatically downloaded and converted
+2. **Community JSON feeds** — direct download
+3. **Commercial threat intelligence feeds** — custom URL configuration
+4. **Local security research** — direct file placement
+
+#### Source Registry
+
+The file `tools/config/rules-sources.json` defines all external sources:
+
+```json
+{
+    "sources": [
+        {
+            "id": "yara_php_malware",
+            "name": "YARA PHP Malware Rules",
+            "type": "yara",
+            "url": "https://raw.githubusercontent.com/YARAHQ/yara-forks/main/php_malware.yar",
+            "enabled": true,
+            "severity_map": {
+                "MALWARE": "critical",
+                "WEBSHELL": "critical",
+                "SUSPICIOUS": "high"
+            }
+        }
+    ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique source identifier |
+| `type` | `yara` (converts YARA) or `webguardian_json` (native format) |
+| `url` | HTTPS URL of the rule file |
+| `enabled` | `true` to include in updates |
+| `convert` | `true` to run converter (YARA only) |
+| `severity_map` | Maps YARA tags to WebGuardian severity levels |
+
+#### Manual YARA Conversion
+
+```bash
+curl -sL https://example.com/malware.yar \
+  | php tools/yara-converter.php my_source '{"MALWARE":"critical"}' \
+  > rules/external/my-rules.json
 ```
 
 ### Community & Commercial Sources
 
-| Source | Type | Integration Method |
-|--------|------|--------------------|
-| YARA Rules | Open Source | Conversion script (`tools/yara-converter.php`) |
-| OWASP Core Rules | Open Source | Manual adaptation to JSON format |
-| Commercial Threat Feeds | Commercial | Custom download scripts |
-| Local Security Research | Internal | Direct JSON file creation |
+| Source | Type | Integration |
+|--------|------|-------------|
+| YARA Forks (PHP Malware) | YARA | Auto via updater |
+| Neo23x0 Signature Base | YARA | Auto via updater |
+| OWASP Core Rules | Manual | Adapt to JSON format |
+| Commercial Threat Feeds | JSON | Add URL to `rules-sources.json` |
+| Local Security Research | JSON | Place in `rules/external/` |
+
+### How External Rules Load
+
+When `Scanner` initializes `MalwareDetector`:
+1. Built-in patterns load first
+2. `loadExternalPatterns()` scans `rules/external/*.json`
+3. All patterns are merged into a single active set
+4. Scanning proceeds as normal
+
+The `rules/external/` directory can contain:
+- Files downloaded by `update-rules.sh`
+- Manually placed JSON rule files
+- Community rule sets
+- Commercial threat feed exports
+
+Any `.json` file in this directory is automatically loaded on the next scan.
 
 ## Rule Format
 

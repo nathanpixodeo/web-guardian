@@ -1,0 +1,69 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# WebGuardian - Cron Job Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Installation:
+#   crontab -e
+#   Then paste the desired line below.
+#
+# Or install automatically:
+#   cat tools/config/crontab.example | crontab -
+#   (or add the line to existing crontab)
+#
+# The update script will:
+#   1. Download rules from external sources (YARA, community, threat feeds)
+#   2. Convert YARA rules to WebGuardian JSON format
+#   3. Merge all external rules into a single active rule set
+#   4. Log results for monitoring
+#
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ---- Automated Rule Updates ----
+
+# Update daily at 3:00 AM (recommended)
+# This keeps your malware signatures current with community feeds.
+0 3 * * * /opt/webguardian/tools/update-rules.sh --quiet >> /var/log/webguardian-update.log 2>&1
+
+# Update twice daily (for high-security environments)
+0 3,15 * * * /opt/webguardian/tools/update-rules.sh --quiet >> /var/log/webguardian-update.log 2>&1
+
+# Update every 6 hours (critical infrastructure)
+0 */6 * * * /opt/webguardian/tools/update-rules.sh --quiet >> /var/log/webguardian-update.log 2>&1
+
+# ---- Scheduled Scans ----
+
+# Scan a WordPress site daily at 4:00 AM
+0 4 * * * /opt/webguardian/bin/webguardian scan /var/www/html --type=wordpress --format=json --output=/var/reports/daily-scan.json >> /var/log/webguardian-scan.log 2>&1
+
+# Scan a Laravel app weekly on Sunday at 5:00 AM
+0 5 * * 0 /opt/webguardian/bin/webguardian scan /var/www/myapp --type=laravel --format=html --output=/var/reports/weekly-scan.html >> /var/log/webguardian-scan.log 2>&1
+
+# ---- Alert on Critical Findings ----
+
+# Check scan results and send email if critical issues found
+0 5 * * * /opt/webguardian/tools/alert-on-critical.sh /var/reports/daily-scan.json admin@example.com >> /var/log/webguardian-alert.log 2>&1
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Notes:
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# - Log files are in /var/log/webguardian-*.log
+#   Ensure the directory exists: mkdir -p /var/log
+#
+# - Update logs rotate naturally; no log rotation needed.
+#   Consider logrotate if logs grow large:
+#     /var/log/webguardian-*.log {
+#         weekly
+#         rotate 4
+#         compress
+#     }
+#
+# - The update script fetches from external URLs.
+#   Ensure the server has internet access if using remote sources.
+#
+# - For air-gapped environments:
+#   1. Download rule files manually
+#   2. Place them in rules/external/
+#   3. Run: php tools/merge-rules.php
+#
+# ═══════════════════════════════════════════════════════════════════════════

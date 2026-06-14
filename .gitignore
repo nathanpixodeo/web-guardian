@@ -6,3 +6,7 @@
 /reports/
 .DS_Store
 Thumbs.db
+
+# External downloaded rules (auto-updated)
+/rules/external/*.json
+!/rules/external/.gitkeep
