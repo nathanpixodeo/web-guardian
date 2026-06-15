@@ -350,6 +350,7 @@ tools/
 | `PHP Fatal error: Allowed memory size exhausted` | Increase memory_limit in php.ini or add `-d memory_limit=512M` |
 | `No findings for known-infected site` | Ensure `--type` is correctly set; update rules |
 | `Scan is too slow` | Reduce depth with `--depth=5` or target specific directories |
+| `Maximum execution time exceeded` | Scanner uses chunked file reading (8KB buffers) to avoid loading entire files; if timeout persists, increase `max_execution_time` in php.ini or reduce scan scope |
 | `JSON output is empty` | Check file permissions and path validity |
 | `Permission denied` | Ensure the running user has read access to the target directory |
 

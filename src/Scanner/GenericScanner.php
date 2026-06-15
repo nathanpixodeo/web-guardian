@@ -311,8 +311,20 @@ class GenericScanner
             if (!$file->isFile()) continue;
             if (!in_array(strtolower($file->getExtension()), ['php', 'phtml', 'php5', 'html', 'htm'])) continue;
 
-            $content = @file_get_contents($file->getRealPath());
-            if ($content && preg_match('/\bphpinfo\s*\(\s*\)/', $content)) {
+            $found = false;
+            $handle = @fopen($file->getRealPath(), 'r');
+            if ($handle) {
+                while (!feof($handle)) {
+                    $chunk = @fread($handle, 8192);
+                    if ($chunk === false || $chunk === '') break;
+                    if (preg_match('/\bphpinfo\s*\(\s*\)/', $chunk)) {
+                        $found = true;
+                        break;
+                    }
+                }
+                fclose($handle);
+            }
+            if ($found) {
                 $phpinfoFiles[] = $file->getRealPath();
             }
         }

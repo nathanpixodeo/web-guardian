@@ -198,6 +198,7 @@ Add JSON rule files to the `rules/` directory or use a custom rules path at scan
 - Vendor and node_modules directories are skipped by default
 - Deduplication prevents redundant findings
 - Findings are limited in output for large result sets
+- Chunked file reading (8KB) used in file content scanning to avoid loading entire files into memory
 
 ## Security Considerations
 

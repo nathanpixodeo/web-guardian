@@ -1,4 +1,4 @@
-# 🔒 WebGuardian - Malware & Security Scanner
+#  WebGuardian - Malware & Security Scanner
 
 **WebGuardian** is a comprehensive security scanning tool designed to detect malware, backdoors, vulnerabilities, and security misconfigurations in PHP-based web applications, including **WordPress**, **Laravel**, **Symfony**, and other CMS/framework projects.
 
@@ -8,15 +8,15 @@
 
 ---
 
-## ✨ Features
+##  Features
 
-### 🦠 Malware Detection
+###  Malware Detection
 - **Signature-based scanning** — known malware patterns, web shells, and backdoors
 - **Heuristic analysis** — behavior-based scoring to detect suspicious code that may not match known signatures
 - **Obfuscation detection** — identifies base64-encoded payloads, hex-encoded strings, nested deobfuscation functions (`gzinflate`, `str_rot13`, `gzuncompress`)
 - **Cryptojacking detection** — finds cryptocurrency mining scripts and mining pool connections
 
-### 🎯 CMS-Specific Scanning
+###  CMS-Specific Scanning
 | CMS | Checks |
 |-----|--------|
 | **WordPress** | Core integrity, version vulnerabilities, plugin/theme analysis, upload directory security, wp-config hardening, user enumeration, must-use plugin inspection |
@@ -24,7 +24,7 @@
 | **PrestaShop** | Version detection (1.4–8.x), install dir exposure, admin security, module analysis, override inspection, config hardening, upload security, SSL enforcement |
 | **Generic PHP** | Composer integrity, `.htaccess` security, `.git` exposure, `php.ini` misconfigurations, backup files, information disclosure |
 
-### 🛡️ Vulnerability Detection
+###  Vulnerability Detection
 - **SQL Injection** — unsanitized input in database queries (CWE-89)
 - **Cross-Site Scripting (XSS)** — echoed user input without escaping (CWE-79)
 - **Local File Inclusion (LFI)** — user-controlled `include()`/`require()` (CWE-98)
@@ -32,14 +32,14 @@
 - **Insecure Deserialization** — `unserialize()` with user input (CWE-502)
 - **Header Injection** — user input in HTTP headers (CWE-113)
 
-### 📊 Reporting
+###  Reporting
 - **Console output** — colorized terminal report with severity breakdown
 - **JSON export** — machine-readable structured data for CI/CD integration
 - **HTML report** — production-grade dashboard with severity badges and statistics
 - **Web Dashboard** — Tailwind CSS UI with scan form, real-time results, and version management
 - **Severity classification** — Critical / High / Medium / Low / Info
 
-### 🔄 Automated Rule Updates
+###  Automated Rule Updates
 - **Cron-ready updater** — `tools/update-rules.sh` fetches, converts, and merges rules from external sources
 - **YARA converter** — converts YARA rule files to WebGuardian JSON format
 - **Source registry** — `tools/config/rules-sources.json` manages external feeds
@@ -50,7 +50,7 @@
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -64,11 +64,12 @@
 - [Integration](#integration)
 - [FAQ](#faq)
 - [Contributing](#contributing)
+- [Changelog](#changelog)
 - [License](#license)
 
 ---
 
-## 🚀 Installation
+##  Installation
 
 ### Requirements
 
@@ -101,7 +102,7 @@ php bin/webguardian scan /path/to/scan
 
 ---
 
-## ⚡ Quick Start
+##  Quick Start
 
 Scan a WordPress site:
 
@@ -123,7 +124,7 @@ php bin/webguardian scan /var/www/html --format=html --output=report.html
 
 ---
 
-## 📖 Usage
+##  Usage
 
 ### Command Line Interface
 
@@ -211,7 +212,7 @@ ssh user@server "php /path/to/webguardian scan /var/www --format=json" > remote-
 
 ---
 
-## 🧠 Platform Detection
+##  Platform Detection
 
 WebGuardian auto-detects the CMS type:
 
@@ -226,7 +227,7 @@ You can override detection with `--type=<type>`.
 
 ---
 
-## 📄 Output Formats
+##  Output Formats
 
 ### Console Format
 Colorized terminal output with severity-bucketed findings, progress information, and a summary dashboard. Includes ANSI color codes for readability.
@@ -276,7 +277,7 @@ A production-grade responsive dashboard featuring:
 
 ---
 
-## 🌐 Web Dashboard
+##  Web Dashboard
 
 WebGuardian includes a production-grade web dashboard built with **Tailwind CSS** for visual scan management.
 
@@ -309,7 +310,7 @@ Then open `http://localhost:8080` in your browser.
 
 ---
 
-## 🔄 Automated Rule Updates
+##  Automated Rule Updates
 
 WebGuardian includes a complete automation pipeline for keeping detection rules current.
 
@@ -319,11 +320,11 @@ WebGuardian includes a complete automation pipeline for keeping detection rules 
 External Sources (YARA repos, community feeds)
         │
         ▼
-tools/update-rules.sh    ← Cron: 0 3 * * *
+tools/update-rules.sh    <- Cron: 0 3 * * *
         │
-        ├──► Download raw rule files
-        ├──► Convert YARA → JSON (yara-converter.php)
-        └──► Merge into rules/external/
+        +---> Download raw rule files
+        +---> Convert YARA -> JSON (yara-converter.php)
+        +---> Merge into rules/external/
                 │
                 ▼
         Scanners load external rules automatically
@@ -405,7 +406,7 @@ crontab -e
 
 ---
 
-## 🔌 Extending Rules
+##  Extending Rules
 
 ### JSON Rule Files
 
@@ -430,13 +431,13 @@ Place custom rules in a directory and reference with `--rules=<path>`:
 
 | Field | Description | Required |
 |-------|-------------|----------|
-| `id` | Unique identifier for the rule | ✅ |
-| `pattern` | Regex pattern to match | ✅ |
-| `severity` | `critical`, `high`, `medium`, `low`, `info` | ✅ |
-| `type` | Category of the finding | ✅ |
-| `message` | Human-readable description | ✅ |
-| `multiLine` | If true, scans entire file content | ❌ |
-| `negative` | If true, checks for absence of pattern | ❌ |
+| `id` | Unique identifier for the rule |  |
+| `pattern` | Regex pattern to match |  |
+| `severity` | `critical`, `high`, `medium`, `low`, `info` |  |
+| `type` | Category of the finding |  |
+| `message` | Human-readable description |  |
+| `multiLine` | If true, scans entire file content |  |
+| `negative` | If true, checks for absence of pattern |  |
 
 ### Rule Sources
 
@@ -474,93 +475,93 @@ $results = $scanner->run();
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 webguardian/
-├── bin/
-│   └── webguardian            # CLI entry point
-├── src/
-│   ├── Scanner.php            # Main scanner orchestrator
-│   ├── Scanner/
-│   │   ├── WordPressScanner.php
-│   │   ├── LaravelScanner.php
-│   │   ├── PrestaShopScanner.php
-│   │   └── GenericScanner.php
-│   ├── Detector/
-│   │   ├── MalwareDetector.php   # Signature + external rules
-│   │   ├── BackdoorDetector.php  # Heuristic scoring
-│   │   └── VulnerabilityDetector.php
-│   ├── Analyzer/
-│   │   ├── FileAnalyzer.php
-│   │   └── DatabaseAnalyzer.php
-│   └── Report/
-│       ├── ReportGenerator.php
-│       └── Formatters/
-│           ├── ConsoleFormatter.php
-│           ├── JsonFormatter.php
-│           └── HtmlFormatter.php
-├── rules/
-│   ├── malware-patterns.json    # Built-in signatures
-│   ├── wordpress-suspicious.json
-│   ├── laravel-backdoors.json
-│   ├── prestashop-suspicious.json
-│   ├── prestashop-vulnerabilities.json
-│   ├── generic-threats.json
-│   └── external/                # Auto-updated external rules
-│       └── .gitkeep
-├── tools/
-│   ├── update-rules.sh          # Cron-ready external updater
-│   ├── yara-converter.php       # YARA → JSON converter
-│   ├── alert-on-critical.sh     # Email/Slack notifier
-│   └── config/
-│       ├── rules-sources.json   # External source registry
-│       └── crontab.example      # Cron job templates
-├── public/
-│   └── index.php                # Web dashboard (Tailwind CSS)
-├── tests/
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── USAGE.md
-│   ├── RULES.md
-│   └── CONTRIBUTING.md
-├── composer.json
-├── LICENSE
-└── README.md
++-- bin/
+|   +-- webguardian            # CLI entry point
++-- src/
+|   +-- Scanner.php            # Main scanner orchestrator
+|   +-- Scanner/
+|   |   +-- WordPressScanner.php
+|   |   +-- LaravelScanner.php
+|   |   +-- PrestaShopScanner.php
+|   |   +-- GenericScanner.php
+|   +-- Detector/
+|   |   +-- MalwareDetector.php   # Signature + external rules
+|   |   +-- BackdoorDetector.php  # Heuristic scoring
+|   |   +-- VulnerabilityDetector.php
+|   +-- Analyzer/
+|   |   +-- FileAnalyzer.php
+|   |   +-- DatabaseAnalyzer.php
+|   +-- Report/
+|       +-- ReportGenerator.php
+|       +-- Formatters/
+|           +-- ConsoleFormatter.php
+|           +-- JsonFormatter.php
+|           +-- HtmlFormatter.php
++-- rules/
+|   +-- malware-patterns.json    # Built-in signatures
+|   +-- wordpress-suspicious.json
+|   +-- laravel-backdoors.json
+|   +-- prestashop-suspicious.json
+|   +-- prestashop-vulnerabilities.json
+|   +-- generic-threats.json
+|   +-- external/                # Auto-updated external rules
+|       +-- .gitkeep
++-- tools/
+|   +-- update-rules.sh          # Cron-ready external updater
+|   +-- yara-converter.php       # YARA -> JSON converter
+|   +-- alert-on-critical.sh     # Email/Slack notifier
+|   +-- config/
+|       +-- rules-sources.json   # External source registry
+|       +-- crontab.example      # Cron job templates
++-- public/
+|   +-- index.php                # Web dashboard (Tailwind CSS)
++-- tests/
++-- docs/
+|   +-- ARCHITECTURE.md
+|   +-- USAGE.md
+|   +-- RULES.md
+|   +-- CONTRIBUTING.md
++-- composer.json
++-- LICENSE
++-- README.md
 ```
 
 ### Data Flow
 
 ```
 User Input (path + options)
-         │
-         ▼
+         |
+         v
    Scanner (orchestrator)
-         │
-         ├──► CMS Scanner ──► WordPress / Laravel / Generic
-         │
-         ├──► File Walker ──► FilesystemIterator
-         │
-         ├──► MalwareDetector ──► Signature matching + heuristics
-         │
-         ├──► BackdoorDetector ──► Scoring-based detection
-         │
-         ├──► VulnerabilityDetector ──► Pattern matching (SQLi, XSS, LFI, SSRF)
-         │
-         ├──► FileAnalyzer ──► Permissions, sensitive data
-         │
-         └──► DatabaseAnalyzer ──► Config exposure, SQL dumps
-                  │
-                  ▼
+         |
+         +---> CMS Scanner ---> WordPress / Laravel / Generic
+         |
+         +---> File Walker ---> FilesystemIterator
+         |
+         +---> MalwareDetector ---> Signature matching + heuristics
+         |
+         +---> BackdoorDetector ---> Scoring-based detection
+         |
+         +---> VulnerabilityDetector ---> Pattern matching (SQLi, XSS, LFI, SSRF)
+         |
+         +---> FileAnalyzer ---> Permissions, sensitive data
+         |
+         +---> DatabaseAnalyzer ---> Config exposure, SQL dumps
+                  |
+                  v
          ReportGenerator
-                  │
-                  ▼
-         Formatter ──► Console / JSON / HTML
+                  |
+                  v
+         Formatter ---> Console / JSON / HTML
 ```
 
 ---
 
-## 🔍 Detection Engine Details
+##  Detection Engine Details
 
 ### Signature-Based Detection
 The scanner maintains a database of known malware signatures, web shell fingerprints, and exploit patterns. These are regex patterns that target specific code patterns commonly found in malicious software.
@@ -582,19 +583,19 @@ The backdoor detector assigns weighted scores to each line of code based on the 
 
 ### Vulnerability Pattern Matching
 The vulnerability detector scans for common web application security flaws using regex patterns mapped to CWE identifiers:
-- SQL Injection → CWE-89
-- XSS → CWE-79
-- LFI → CWE-98
-- SSRF → CWE-918
-- Header Injection → CWE-113
-- Insecure Deserialization → CWE-502
+- SQL Injection -> CWE-89
+- XSS -> CWE-79
+- LFI -> CWE-98
+- SSRF -> CWE-918
+- Header Injection -> CWE-113
+- Insecure Deserialization -> CWE-502
 
 ### CMS-Specific Analysis
 WordPress and Laravel scanners include framework-specific checks that go beyond generic pattern matching, analyzing core file integrity, configuration hardening, and known vulnerability vectors.
 
 ---
 
-## 🔗 Integration
+##  Integration
 
 ### CI/CD Pipeline (GitHub Actions)
 
@@ -649,7 +650,7 @@ fi
 
 ---
 
-## ❓ FAQ
+## FAQ
 
 ### How does WebGuardian detect malware?
 It uses a combination of signature-based pattern matching (known malware patterns), heuristic scoring (behavioral analysis), and CMS-specific checks.
@@ -671,7 +672,7 @@ Yes, WebGuardian scans various file types including JS, HTML, .htaccess, .env, a
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Please read [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
@@ -686,16 +687,27 @@ composer test
 
 ---
 
-## 📜 License
+## Changelog
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+### 2026-06-15 - Performance fix: chunked file reading in GenericScanner
+
+- **Fixed**: `Maximum execution time` timeout error in `checkInformationDisclosure()` when scanning large projects
+- **Change**: Replaced `file_get_contents()` (loads entire file into memory) with `fopen()` + `fread()` chunked reading (8KB buffers)
+- **Benefit**: Eliminates timeout on large files, reduces memory usage, and early-exits as soon as the pattern is found
+- **Affected file**: `src/Scanner/GenericScanner.php`
 
 ---
 
-## ⚠️ Disclaimer
+## License
+
+This project is licensed under the MIT License -- see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Disclaimer
 
 WebGuardian performs static code analysis and may produce both false positives and false negatives. Always review findings manually before taking action. The authors are not responsible for any damage resulting from the use of this tool.
 
 ---
 
-<p align="center">Built with ❤️ for the security community</p>
+<p align="center">Built with love for the security community</p>
