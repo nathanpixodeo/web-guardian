@@ -35,6 +35,7 @@ Options:
   --no-perm            Skip permission checks
   --verbose            Verbose output
   --rules=<path>       Custom rules directory
+  --progress=<file>    Write progress JSON to file
 
 Examples:
   webguardian scan /var/www/html --type=wordpress
@@ -58,14 +59,15 @@ if (!is_dir($path)) {
 }
 
 $options = [
-    'type'       => 'auto',
-    'format'     => 'console',
-    'output'     => null,
-    'depth'      => 10,
-    'no-backup'  => false,
-    'no-perm'    => false,
-    'verbose'    => false,
-    'rules'      => null,
+    'type'          => 'auto',
+    'format'        => 'console',
+    'output'        => null,
+    'depth'         => 10,
+    'no-backup'     => false,
+    'no-perm'       => false,
+    'verbose'       => false,
+    'rules'         => null,
+    'progress_file' => null,
 ];
 
 for ($i = 2; $i < count($args); $i++) {
@@ -76,6 +78,8 @@ for ($i = 2; $i < count($args); $i++) {
         $val = $parts[1] ?? true;
         if (array_key_exists($key, $options)) {
             $options[$key] = $val;
+        } elseif ($key === 'progress') {
+            $options['progress_file'] = $val;
         } elseif ($key === 'verbose') {
             $options['verbose'] = true;
         } elseif ($key === 'no-backup') {

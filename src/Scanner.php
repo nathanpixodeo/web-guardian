@@ -24,17 +24,23 @@ class Scanner
     private FileAnalyzer $fileAnalyzer;
     private DatabaseAnalyzer $dbAnalyzer;
 
+    private ?string $progressFile = null;
+    private float $startTime = 0.0;
+
     public function __construct(string $path, array $options = [])
     {
         $this->path = realpath($path);
         $this->options = array_merge([
-            'type'       => 'generic',
-            'depth'      => 10,
-            'no-backup'  => false,
-            'no-perm'    => false,
-            'verbose'    => false,
-            'rules'      => null,
+            'type'          => 'generic',
+            'depth'         => 10,
+            'no-backup'     => false,
+            'no-perm'       => false,
+            'verbose'       => false,
+            'rules'         => null,
+            'progress_file' => null,
         ], $options);
+
+        $this->progressFile = $this->options['progress_file'];
 
         $this->malwareDetector   = new MalwareDetector($this->options);
         $this->backdoorDetector  = new BackdoorDetector($this->options);
@@ -54,8 +60,9 @@ class Scanner
 
     public function run(): array
     {
-        $start = microtime(true);
+        $this->startTime = microtime(true);
         $this->log("Starting scan of {$this->path} (type: {$this->options['type']})");
+        $this->writeProgress('cms_scan', 'Running CMS-specific scanner...');
 
         // Detect CMS type
         $cmsScanner = match ($this->options['type']) {
@@ -72,7 +79,9 @@ class Scanner
 
         // Walk files
         $this->log("Walking filesystem...");
-        $callback = function (\SplFileInfo $file) use (&$findings) {
+        $this->writeProgress('file_scan', 'Scanning files...');
+        $progressCounter = 0;
+        $callback = function (\SplFileInfo $file) use (&$findings, &$progressCounter) {
             if ($this->shouldSkip($file)) {
                 $this->results['stats']['files_skipped']++;
                 return;
@@ -114,17 +123,24 @@ class Scanner
                     $findings[] = $p;
                 }
             }
+
+            $progressCounter++;
+            if ($this->progressFile && $progressCounter % 10 === 0) {
+                $this->writeProgress('file_scan', $path);
+            }
         };
 
         $this->walkDirectory($this->path, $callback, $this->options['depth']);
 
         // Check for common vulnerability patterns
         $this->log("Checking for vulnerability patterns...");
+        $this->writeProgress('vuln_scan', 'Checking vulnerability patterns...');
         $vulnFindings = $this->vulnDetector->scanDirectory($this->path);
         $findings = array_merge($findings, $vulnFindings);
 
         // Check database config files for exposure
         $this->log("Analyzing configuration files...");
+        $this->writeProgress('db_scan', 'Analyzing configuration files...');
         $dbFindings = $this->dbAnalyzer->findExposedConfigs($this->path);
         $findings = array_merge($findings, $dbFindings);
 
@@ -155,9 +171,10 @@ class Scanner
             $this->results['summary']['total']++;
         }
         $this->results['findings'] = $findings;
-        $this->results['stats']['elapsed_ms'] = (int) ((microtime(true) - $start) * 1000);
+        $this->results['stats']['elapsed_ms'] = (int) ((microtime(true) - $this->startTime) * 1000);
 
         $this->log("Scan complete. {$this->results['summary']['total']} findings in {$this->results['stats']['elapsed_ms']}ms");
+        $this->writeProgress('completed');
 
         return $this->results;
     }
@@ -197,6 +214,34 @@ class Scanner
         if ($file->getSize() > 10 * 1024 * 1024) return true; // skip files > 10MB
 
         return false;
+    }
+
+    private function writeProgress(string $status, string $currentFile = ''): void
+    {
+        if (!$this->progressFile) return;
+
+        $findingsCount = 0;
+        foreach ($this->results['summary'] as $k => $v) {
+            if (in_array($k, ['critical', 'high', 'medium', 'low', 'info'])) {
+                $findingsCount += $v;
+            }
+        }
+
+        $data = json_encode([
+            'status'        => $status,
+            'phase'         => $status,
+            'files_scanned' => $this->results['stats']['files_scanned'],
+            'files_skipped' => $this->results['stats']['files_skipped'],
+            'current_file'  => $currentFile,
+            'findings_count'=> $findingsCount,
+            'elapsed_ms'    => (int) ((microtime(true) - $this->startTime) * 1000),
+        ]);
+
+        $dir = dirname($this->progressFile);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        @file_put_contents($this->progressFile, $data, LOCK_EX);
     }
 
     private function log(string $message): void

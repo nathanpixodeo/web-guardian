@@ -301,16 +301,23 @@ class GenericScanner
         $findings = [];
 
         // Check for phpinfo() in codebase
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->path, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
-        );
+        $directoryIterator = new \RecursiveDirectoryIterator($this->path, \FilesystemIterator::SKIP_DOTS);
+        $filterIterator = new \RecursiveCallbackFilterIterator($directoryIterator, function ($current, $key, $iterator) {
+            if ($iterator->hasChildren()) {
+                $dirName = $current->getBasename();
+                return !(str_starts_with($dirName, '.') || $dirName === 'vendor' || $dirName === 'node_modules' ||
+                         $dirName === 'storage' || $dirName === 'cache');
+            }
+            if (!$current->isFile()) return false;
+            if (!in_array(strtolower($current->getExtension()), ['php', 'phtml', 'php5', 'html', 'htm'])) return false;
+            if ($current->getSize() > 10 * 1024 * 1024) return false;
+            return true;
+        });
+        $iterator = new \RecursiveIteratorIterator($filterIterator, \RecursiveIteratorIterator::SELF_FIRST);
 
         $phpinfoFiles = [];
+        set_time_limit(0);
         foreach ($iterator as $file) {
-            if (!$file->isFile()) continue;
-            if (!in_array(strtolower($file->getExtension()), ['php', 'phtml', 'php5', 'html', 'htm'])) continue;
-
             $found = false;
             $handle = @fopen($file->getRealPath(), 'r');
             if ($handle) {

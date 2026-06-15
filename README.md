@@ -1,4 +1,4 @@
-#  WebGuardian - Malware & Security Scanner
+﻿#  WebGuardian - Malware & Security Scanner
 
 **WebGuardian** is a comprehensive security scanning tool designed to detect malware, backdoors, vulnerabilities, and security misconfigurations in PHP-based web applications, including **WordPress**, **Laravel**, **Symfony**, and other CMS/framework projects.
 
@@ -11,40 +11,40 @@
 ##  Features
 
 ###  Malware Detection
-- **Signature-based scanning** — known malware patterns, web shells, and backdoors
-- **Heuristic analysis** — behavior-based scoring to detect suspicious code that may not match known signatures
-- **Obfuscation detection** — identifies base64-encoded payloads, hex-encoded strings, nested deobfuscation functions (`gzinflate`, `str_rot13`, `gzuncompress`)
-- **Cryptojacking detection** — finds cryptocurrency mining scripts and mining pool connections
+- **Signature-based scanning** ΓÇö known malware patterns, web shells, and backdoors
+- **Heuristic analysis** ΓÇö behavior-based scoring to detect suspicious code that may not match known signatures
+- **Obfuscation detection** ΓÇö identifies base64-encoded payloads, hex-encoded strings, nested deobfuscation functions (`gzinflate`, `str_rot13`, `gzuncompress`)
+- **Cryptojacking detection** ΓÇö finds cryptocurrency mining scripts and mining pool connections
 
 ###  CMS-Specific Scanning
 | CMS | Checks |
 |-----|--------|
 | **WordPress** | Core integrity, version vulnerabilities, plugin/theme analysis, upload directory security, wp-config hardening, user enumeration, must-use plugin inspection |
 | **Laravel** | `.env` exposure, APP_KEY strength, debug mode, route exposure, middleware config, composer package audit, service provider analysis |
-| **PrestaShop** | Version detection (1.4–8.x), install dir exposure, admin security, module analysis, override inspection, config hardening, upload security, SSL enforcement |
+| **PrestaShop** | Version detection (1.4ΓÇô8.x), install dir exposure, admin security, module analysis, override inspection, config hardening, upload security, SSL enforcement |
 | **Generic PHP** | Composer integrity, `.htaccess` security, `.git` exposure, `php.ini` misconfigurations, backup files, information disclosure |
 
 ###  Vulnerability Detection
-- **SQL Injection** — unsanitized input in database queries (CWE-89)
-- **Cross-Site Scripting (XSS)** — echoed user input without escaping (CWE-79)
-- **Local File Inclusion (LFI)** — user-controlled `include()`/`require()` (CWE-98)
-- **Server-Side Request Forgery (SSRF)** — user-controlled URLs in HTTP clients (CWE-918)
-- **Insecure Deserialization** — `unserialize()` with user input (CWE-502)
-- **Header Injection** — user input in HTTP headers (CWE-113)
+- **SQL Injection** ΓÇö unsanitized input in database queries (CWE-89)
+- **Cross-Site Scripting (XSS)** ΓÇö echoed user input without escaping (CWE-79)
+- **Local File Inclusion (LFI)** ΓÇö user-controlled `include()`/`require()` (CWE-98)
+- **Server-Side Request Forgery (SSRF)** ΓÇö user-controlled URLs in HTTP clients (CWE-918)
+- **Insecure Deserialization** ΓÇö `unserialize()` with user input (CWE-502)
+- **Header Injection** ΓÇö user input in HTTP headers (CWE-113)
 
 ###  Reporting
-- **Console output** — colorized terminal report with severity breakdown
-- **JSON export** — machine-readable structured data for CI/CD integration
-- **HTML report** — production-grade dashboard with severity badges and statistics
-- **Web Dashboard** — Tailwind CSS UI with scan form, real-time results, and version management
-- **Severity classification** — Critical / High / Medium / Low / Info
+- **Console output** ΓÇö colorized terminal report with severity breakdown
+- **JSON export** ΓÇö machine-readable structured data for CI/CD integration
+- **HTML report** ΓÇö production-grade dashboard with severity badges and statistics
+- **Web Dashboard** ΓÇö Tailwind CSS UI with scan form, real-time results, and version management
+- **Severity classification** ΓÇö Critical / High / Medium / Low / Info
 
 ###  Automated Rule Updates
-- **Cron-ready updater** — `tools/update-rules.sh` fetches, converts, and merges rules from external sources
-- **YARA converter** — converts YARA rule files to WebGuardian JSON format
-- **Source registry** — `tools/config/rules-sources.json` manages external feeds
-- **Version checker** — Web UI shows rule count and last update; one-click update button
-- **Alert notifier** — `tools/alert-on-critical.sh` sends email/Slack on critical findings
+- **Cron-ready updater** ΓÇö `tools/update-rules.sh` fetches, converts, and merges rules from external sources
+- **YARA converter** ΓÇö converts YARA rule files to WebGuardian JSON format
+- **Source registry** ΓÇö `tools/config/rules-sources.json` manages external feeds
+- **Version checker** ΓÇö Web UI shows rule count and last update; one-click update button
+- **Alert notifier** ΓÇö `tools/alert-on-critical.sh` sends email/Slack on critical findings
 
 > The project is currently in active development. The rule engine is **extensible** and allows adding custom detection patterns without modifying the core code.
 
@@ -161,9 +161,9 @@ php bin/webguardian scan /var/www/mysite
 
 Expected output:
 ```
-  ════════════════════════════════════════════════════════
+  ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   WebGuardian Security Scan Report
-  ════════════════════════════════════════════════════════
+  ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
 
   Scan Path:    /var/www/mysite
   CMS Type:     wordpress
@@ -171,16 +171,16 @@ Expected output:
   Duration:     2340ms
   Files Scanned: 1842
 
-  ┌─ Scan Summary ──────────────────────────────
-  │
-  │   Critical: 0
-  │   High:     3  ███
-  │   Medium:   5  █████
-  │   Low:      2  ██
-  │   Info:     1  █
-  │
-  │   Total Findings: 11
-  └────────────────────────────────────────────────
+  ΓöîΓöÇ Scan Summary ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  Γöé
+  Γöé   Critical: 0
+  Γöé   High:     3  ΓûêΓûêΓûê
+  Γöé   Medium:   5  ΓûêΓûêΓûêΓûêΓûê
+  Γöé   Low:      2  ΓûêΓûê
+  Γöé   Info:     1  Γûê
+  Γöé
+  Γöé   Total Findings: 11
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 ```
 
 #### JSON Output for CI/CD
@@ -318,18 +318,18 @@ WebGuardian includes a complete automation pipeline for keeping detection rules 
 
 ```
 External Sources (YARA repos, community feeds)
-        │
-        ▼
+        Γöé
+        Γû╝
 tools/update-rules.sh    <- Cron: 0 3 * * *
-        │
+        Γöé
         +---> Download raw rule files
         +---> Convert YARA -> JSON (yara-converter.php)
         +---> Merge into rules/external/
-                │
-                ▼
+                Γöé
+                Γû╝
         Scanners load external rules automatically
-                │
-                ▼
+                Γöé
+                Γû╝
         Web UI shows version + Update Now button
 ```
 
@@ -688,6 +688,17 @@ composer test
 ---
 
 ## Changelog
+
+### 2026-06-15 - Async scan with real-time progress + directory filtering
+
+- **New**: Web dashboard now runs scans asynchronously (background process) — no more page blocking during scan
+- **New**: Real-time progress bar showing files scanned, findings count, current file, elapsed time
+- **New**: `?api=start_scan`, `?api=scan_progress`, `?api=scan_results` API endpoints for async scan management
+- **New**: Scanner.php now accepts `progress_file` option and writes JSON progress updates during scanning
+- **New**: CLI `--progress=<file>` option for progress output
+- **Fixed**: `checkInformationDisclosure()` now uses `RecursiveCallbackFilterIterator` to skip `vendor/`, `node_modules/`, `storage/`, `cache/`, hidden dirs, and files >10MB — prevents timeout on large projects
+- **Fixed**: Added `set_time_limit(0)` in `checkInformationDisclosure()` to prevent execution timeout
+- **Affected files**: `src/Scanner/GenericScanner.php`, `src/Scanner.php`, `bin/webguardian`, `public/index.php`
 
 ### 2026-06-15 - Performance fix: chunked file reading in GenericScanner
 

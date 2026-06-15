@@ -111,7 +111,255 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['api'])) {
     exit;
 }
 
-// ---- Scan Logic ----
+// ---- Helper: render scan results HTML ----
+function renderResultsHtml(array $scanResult): string
+{
+    $summary = $scanResult['summary'] ?? [];
+    $findings = $scanResult['findings'] ?? [];
+    $meta = $scanResult['metadata'] ?? [];
+    $total = $summary['total'] ?? 0;
+    $critical = $summary['critical'] ?? 0;
+    $high = $summary['high'] ?? 0;
+    $medium = $summary['medium'] ?? 0;
+    $low = $summary['low'] ?? 0;
+    $info = $summary['info'] ?? 0;
+
+    $severityColor = $critical > 0 ? 'red' : ($high > 0 ? 'orange' : ($medium > 0 ? 'yellow' : ($total > 0 ? 'blue' : 'emerald')));
+    $statusText = $critical > 0 ? 'Critical Issues Found' : ($high > 0 ? 'High Severity Issues' : ($medium > 0 ? 'Medium Severity' : ($total > 0 ? 'Low Severity' : 'Clean')));
+
+    $html = '<div class="animate-slide-up space-y-6">';
+
+    // Status banner
+    $html .= <<<BANNER
+    <div class="bg-{$severityColor}-50 border-{$severityColor}-200 border rounded-2xl p-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-{$severityColor}-100 rounded-2xl flex items-center justify-center">
+BANNER;
+    if ($total === 0) {
+        $html .= '<svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>';
+    } else {
+        $html .= <<<ICON
+        <svg class="w-7 h-7 text-{$severityColor}-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+ICON;
+    }
+    $html .= "</div><div>";
+    $html .= "<h2 class=\"text-2xl font-bold text-{$severityColor}-900\">{$statusText}</h2>";
+    $html .= '<p class="text-sm text-' . $severityColor . '-600">Scan completed in ' . number_format($meta['duration_ms'] ?? 0) . 'ms</p>';
+    $html .= "</div></div></div></div>";
+
+    // Stats grid
+    $html .= '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">';
+    $stats = [
+        ['label' => 'Total', 'count' => $total, 'color' => 'slate'],
+        ['label' => 'Critical', 'count' => $critical, 'color' => 'red'],
+        ['label' => 'High', 'count' => $high, 'color' => 'orange'],
+        ['label' => 'Medium', 'count' => $medium, 'color' => 'yellow'],
+        ['label' => 'Low', 'count' => $low, 'color' => 'blue'],
+        ['label' => 'Info', 'count' => $info, 'color' => 'gray'],
+    ];
+    foreach ($stats as $stat) {
+        $html .= '<div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm hover:shadow-md transition-shadow">';
+        $html .= '<div class="text-2xl sm:text-3xl font-bold text-' . $stat['color'] . '-600">' . $stat['count'] . '</div>';
+        $html .= '<div class="text-xs text-slate-500 font-medium mt-1">' . $stat['label'] . '</div>';
+        $html .= '</div>';
+    }
+    $html .= '</div>';
+
+    // Scan info
+    $html .= <<<INFO
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <div class="px-6 py-4 border-b border-slate-100"><h3 class="font-semibold text-slate-900">Scan Information</h3></div>
+        <div class="px-6 py-4">
+            <dl class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+INFO;
+    $html .= '<div><dt class="text-slate-500">Path</dt><dd class="font-medium text-slate-900 truncate" title="' . htmlspecialchars($meta['path'] ?? '') . '">' . htmlspecialchars($meta['path'] ?? '') . '</dd></div>';
+    $html .= '<div><dt class="text-slate-500">CMS Type</dt><dd class="font-medium text-slate-900 capitalize">' . htmlspecialchars($meta['type'] ?? '') . '</dd></div>';
+    $html .= '<div><dt class="text-slate-500">Files Scanned</dt><dd class="font-medium text-slate-900">' . number_format($meta['files_scanned'] ?? 0) . '</dd></div>';
+    $html .= '<div><dt class="text-slate-500">Duration</dt><dd class="font-medium text-slate-900">' . number_format($meta['duration_ms'] ?? 0) . 'ms</dd></div>';
+    $html .= '</dl></div></div>';
+
+    // Findings
+    if (!empty($findings)) {
+        $html .= '<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">';
+        $html .= '<div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">';
+        $html .= '<h3 class="font-semibold text-slate-900">Findings</h3>';
+        $html .= '<span class="text-xs text-slate-400">' . count($findings) . ' issues</span></div>';
+        $html .= '<div class="divide-y divide-slate-100">';
+
+        $sevColors = [
+            'critical' => ['bg' => 'bg-red-50', 'text' => 'text-red-800', 'badge' => 'bg-red-100 text-red-700', 'dot' => 'bg-red-500'],
+            'high'     => ['bg' => 'bg-orange-50', 'text' => 'text-orange-800', 'badge' => 'bg-orange-100 text-orange-700', 'dot' => 'bg-orange-500'],
+            'medium'   => ['bg' => 'bg-yellow-50', 'text' => 'text-yellow-800', 'badge' => 'bg-yellow-100 text-yellow-700', 'dot' => 'bg-yellow-500'],
+            'low'      => ['bg' => 'bg-blue-50', 'text' => 'text-blue-800', 'badge' => 'bg-blue-100 text-blue-700', 'dot' => 'bg-blue-500'],
+            'info'     => ['bg' => 'bg-gray-50', 'text' => 'text-gray-600', 'badge' => 'bg-gray-100 text-gray-600', 'dot' => 'bg-gray-400'],
+        ];
+
+        foreach (array_slice($findings, 0, 100) as $i => $finding) {
+            $sev = $finding['severity'] ?? 'info';
+            $sc = $sevColors[$sev] ?? $sevColors['info'];
+            $html .= '<div class="' . $sc['bg'] . ' px-6 py-4" style="animation-delay: ' . ($i * 0.05) . 's">';
+            $html .= '<div class="flex items-start gap-3">';
+            $html .= '<span class="w-2 h-2 rounded-full mt-2 shrink-0 ' . $sc['dot'] . '"></span>';
+            $html .= '<div class="flex-1 min-w-0">';
+            $html .= '<div class="flex items-start justify-between gap-3">';
+            $html .= '<p class="text-sm font-medium ' . $sc['text'] . '">' . htmlspecialchars($finding['message'] ?? '') . '</p>';
+            $html .= '<span class="shrink-0 px-2 py-0.5 rounded text-xs font-semibold ' . $sc['badge'] . '">' . strtoupper($sev) . '</span>';
+            $html .= '</div>';
+            $html .= '<div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">';
+            $html .= '<span class="truncate max-w-xs" title="' . htmlspecialchars($finding['file'] ?? '') . '">' . htmlspecialchars(basename($finding['file'] ?? '')) . '</span>';
+            if (!empty($finding['line'])) $html .= '<span>Line ' . (int)$finding['line'] . '</span>';
+            $html .= '<span class="text-slate-400">' . htmlspecialchars($finding['pattern'] ?? '') . '</span>';
+            $html .= '</div>';
+            if (!empty($finding['file'])) {
+                $html .= '<p class="mt-1 text-xs text-slate-400 font-mono truncate" title="' . htmlspecialchars($finding['file']) . '">' . htmlspecialchars($finding['file']) . '</p>';
+            }
+            $html .= '</div></div></div>';
+        }
+
+        if (count($findings) > 100) {
+            $html .= '<div class="px-6 py-4 bg-slate-50 text-center text-sm text-slate-500">+ ' . (count($findings) - 100) . ' more findings.</div>';
+        }
+        $html .= '</div></div>';
+    }
+
+    $html .= '</div>';
+    return $html;
+}
+
+function startBackgroundProcess(string $cmd): void
+{
+    if (PHP_OS_FAMILY === 'Windows') {
+        pclose(popen('start /B ' . $cmd . ' > NUL 2>&1', 'r'));
+    } else {
+        exec($cmd . ' > /dev/null 2>&1 &');
+    }
+}
+
+// ---- Async Scan API ----
+if ($_GET['api'] ?? '' === 'start_scan' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!$input || empty($input['scan_path'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Missing scan_path']);
+        exit;
+    }
+
+    $path = $input['scan_path'];
+    $type = $input['scan_type'] ?? 'auto';
+    $depth = (int)($input['scan_depth'] ?? 10);
+    $checkBackup = !empty($input['check_backup']);
+    $checkPerm = !empty($input['check_perm']);
+
+    if (!is_dir($path)) {
+        echo json_encode(['success' => false, 'error' => 'Directory does not exist: ' . $path]);
+        exit;
+    }
+
+    $token = bin2hex(random_bytes(16));
+    $outputFile = sys_get_temp_dir() . '/webguardian_result_' . $token . '.json';
+    $progressFile = sys_get_temp_dir() . '/webguardian_progress_' . $token . '.json';
+
+    // Write initial progress
+    file_put_contents($progressFile, json_encode([
+        'status' => 'starting', 'phase' => 'starting', 'files_scanned' => 0,
+        'files_skipped' => 0, 'current_file' => '', 'findings_count' => 0, 'elapsed_ms' => 0,
+    ]));
+
+    // Build CLI command
+    $cliPath = realpath(__DIR__ . '/../bin/webguardian');
+    $cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($cliPath) . ' scan'
+        . ' ' . escapeshellarg($path)
+        . ' --type=' . escapeshellarg($type)
+        . ' --format=json'
+        . ' --output=' . escapeshellarg($outputFile)
+        . ' --progress=' . escapeshellarg($progressFile)
+        . ' --depth=' . (int)$depth;
+    if (!$checkBackup) $cmd .= ' --no-backup';
+    if ($checkPerm) $cmd .= ' --no-perm';
+
+    startBackgroundProcess($cmd);
+
+    echo json_encode([
+        'success' => true,
+        'token' => $token,
+        'progress_url' => '?api=scan_progress&token=' . $token,
+        'results_url' => '?api=scan_results&token=' . $token,
+    ]);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['api']) && $_GET['api'] === 'scan_progress') {
+    header('Content-Type: application/json');
+
+    $token = $_GET['token'] ?? '';
+    if (!preg_match('/^[a-f0-9]{32}$/', $token)) {
+        echo json_encode(['success' => false, 'error' => 'Invalid token']);
+        exit;
+    }
+
+    $progressFile = sys_get_temp_dir() . '/webguardian_progress_' . $token . '.json';
+    $outputFile = sys_get_temp_dir() . '/webguardian_result_' . $token . '.json';
+
+    if (file_exists($outputFile)) {
+        $result = json_decode(file_get_contents($outputFile), true);
+        echo json_encode([
+            'success' => true,
+            'status' => 'completed',
+            'result' => $result ? true : false,
+        ]);
+        // Cleanup progress file
+        @unlink($progressFile);
+        exit;
+    }
+
+    if (file_exists($progressFile)) {
+        $progress = json_decode(file_get_contents($progressFile), true);
+        echo json_encode(array_merge(['success' => true], $progress));
+        exit;
+    }
+
+    echo json_encode(['success' => true, 'status' => 'starting', 'phase' => 'starting',
+        'files_scanned' => 0, 'files_skipped' => 0, 'current_file' => '',
+        'findings_count' => 0, 'elapsed_ms' => 0]);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['api']) && $_GET['api'] === 'scan_results') {
+    header('Content-Type: application/json');
+
+    $token = $_GET['token'] ?? '';
+    if (!preg_match('/^[a-f0-9]{32}$/', $token)) {
+        echo json_encode(['success' => false, 'error' => 'Invalid token']);
+        exit;
+    }
+
+    $outputFile = sys_get_temp_dir() . '/webguardian_result_' . $token . '.json';
+
+    if (!file_exists($outputFile)) {
+        echo json_encode(['success' => false, 'error' => 'Results not ready']);
+        exit;
+    }
+
+    $scanResult = json_decode(file_get_contents($outputFile), true);
+    if (!$scanResult) {
+        echo json_encode(['success' => false, 'error' => 'Failed to parse results']);
+        exit;
+    }
+
+    $html = renderResultsHtml($scanResult);
+
+    // Cleanup temp files
+    @unlink($outputFile);
+    @unlink(sys_get_temp_dir() . '/webguardian_progress_' . $token . '.json');
+
+    echo json_encode(['success' => true, 'html' => $html]);
+    exit;
+}
+
+// ---- Scan Logic (synchronous, for non-JS fallback) ----
 $scanResult = null;
 $scanError = null;
 $scanRunning = false;
@@ -385,156 +633,8 @@ if (file_exists($mergedFile)) {
             </div>
 
             <!-- Results Area -->
-            <div class="lg:col-span-2 space-y-6">
-                <?php if ($scanRunning): ?>
-                    <!-- Loading -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center animate-slide-up">
-                        <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                            <svg class="w-8 h-8 text-indigo-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                            </svg>
-                        </div>
-                        <h3 class="text-xl font-semibold text-slate-900 mb-2">Scanning in Progress...</h3>
-                        <p class="text-slate-500 mb-6">Analyzing files for malware, backdoors, and vulnerabilities</p>
-                        <div class="max-w-md mx-auto">
-                            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full animate-scan"></div>
-                            </div>
-                            <p class="text-xs text-slate-400 mt-3"><?= htmlspecialchars($_POST['scan_path'] ?? '') ?></p>
-                        </div>
-                    </div>
-                <?php elseif ($scanError): ?>
-                    <!-- Error -->
-                    <div class="bg-red-50 border border-red-200 rounded-2xl p-6 animate-slide-up">
-                        <div class="flex items-start gap-4">
-                            <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
-                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-red-800">Scan Failed</h3>
-                                <p class="text-sm text-red-600 mt-1"><?= $scanError ?></p>
-                            </div>
-                        </div>
-                    </div>
-                <?php elseif ($scanResult): ?>
-                    <!-- Results Dashboard -->
-                    <div class="animate-slide-up space-y-6">
-                        <?php
-                        $summary = $scanResult['summary'] ?? [];
-                        $findings = $scanResult['findings'] ?? [];
-                        $meta = $scanResult['metadata'] ?? [];
-                        $total = $summary['total'] ?? 0;
-                        $critical = $summary['critical'] ?? 0;
-                        $high = $summary['high'] ?? 0;
-                        $medium = $summary['medium'] ?? 0;
-                        $low = $summary['low'] ?? 0;
-                        $info = $summary['info'] ?? 0;
-
-                        $severityColor = $critical > 0 ? 'red' : ($high > 0 ? 'orange' : ($medium > 0 ? 'yellow' : ($total > 0 ? 'blue' : 'emerald')));
-                        $statusText = $critical > 0 ? 'Critical Issues Found' : ($high > 0 ? 'High Severity Issues' : ($medium > 0 ? 'Medium Severity' : ($total > 0 ? 'Low Severity' : 'Clean')));
-                        ?>
-
-                        <div class="<?= "bg-{$severityColor}-50 border-{$severityColor}-200" ?> border rounded-2xl p-6">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-4">
-                                    <div class="<?= "w-14 h-14 bg-{$severityColor}-100 rounded-2xl flex items-center justify-center" ?>">
-                                        <?php if ($total === 0): ?>
-                                        <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                                        <?php else: ?>
-                                        <svg class="<?= "w-7 h-7 text-{$severityColor}-600" ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div>
-                                        <h2 class="<?= "text-2xl font-bold text-{$severityColor}-900" ?>"><?= $statusText ?></h2>
-                                        <p class="<?= "text-sm text-{$severityColor}-600" ?>">Scan completed in <?= number_format($meta['duration_ms'] ?? 0) ?>ms</p>
-                                    </div>
-                                </div>
-                                <span class="hidden sm:inline-flex items-center px-3 py-1 <?= "bg-{$severityColor}-100 text-{$severityColor}-700" ?> rounded-full text-sm font-medium">
-                                    <?= date('H:i:s', strtotime($meta['scanned_at'] ?? 'now')) ?>
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                            <?php
-                            $stats = [
-                                ['label' => 'Total', 'count' => $total, 'color' => 'slate'],
-                                ['label' => 'Critical', 'count' => $critical, 'color' => 'red'],
-                                ['label' => 'High', 'count' => $high, 'color' => 'orange'],
-                                ['label' => 'Medium', 'count' => $medium, 'color' => 'yellow'],
-                                ['label' => 'Low', 'count' => $low, 'color' => 'blue'],
-                                ['label' => 'Info', 'count' => $info, 'color' => 'gray'],
-                            ];
-                            foreach ($stats as $stat):
-                                $c = $stat['color'];
-                            ?>
-                            <div class="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm hover:shadow-md transition-shadow">
-                                <div class="<?= "text-2xl sm:text-3xl font-bold text-{$c}-600" ?>"><?= $stat['count'] ?></div>
-                                <div class="text-xs text-slate-500 font-medium mt-1"><?= $stat['label'] ?></div>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
-                            <div class="px-6 py-4 border-b border-slate-100">
-                                <h3 class="font-semibold text-slate-900">Scan Information</h3>
-                            </div>
-                            <div class="px-6 py-4">
-                                <dl class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                                    <div><dt class="text-slate-500">Path</dt><dd class="font-medium text-slate-900 truncate" title="<?= htmlspecialchars($meta['path'] ?? '') ?>"><?= htmlspecialchars($meta['path'] ?? '') ?></dd></div>
-                                    <div><dt class="text-slate-500">CMS Type</dt><dd class="font-medium text-slate-900 capitalize"><?= htmlspecialchars($meta['type'] ?? '') ?></dd></div>
-                                    <div><dt class="text-slate-500">Files Scanned</dt><dd class="font-medium text-slate-900"><?= number_format($meta['files_scanned'] ?? 0) ?></dd></div>
-                                    <div><dt class="text-slate-500">Duration</dt><dd class="font-medium text-slate-900"><?= number_format($meta['duration_ms'] ?? 0) ?>ms</dd></div>
-                                </dl>
-                            </div>
-                        </div>
-
-                        <?php if (!empty($findings)): ?>
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                                <h3 class="font-semibold text-slate-900">Findings</h3>
-                                <span class="text-xs text-slate-400"><?= count($findings) ?> issues</span>
-                            </div>
-                            <div class="divide-y divide-slate-100">
-                                <?php foreach (array_slice($findings, 0, 100) as $i => $finding):
-                                    $sev = $finding['severity'] ?? 'info';
-                                    $sevColors = [
-                                        'critical' => ['bg' => 'bg-red-50', 'border' => 'border-red-200', 'text' => 'text-red-800', 'badge' => 'bg-red-100 text-red-700', 'dot' => 'bg-red-500'],
-                                        'high'     => ['bg' => 'bg-orange-50', 'border' => 'border-orange-200', 'text' => 'text-orange-800', 'badge' => 'bg-orange-100 text-orange-700', 'dot' => 'bg-orange-500'],
-                                        'medium'   => ['bg' => 'bg-yellow-50', 'border' => 'border-yellow-200', 'text' => 'text-yellow-800', 'badge' => 'bg-yellow-100 text-yellow-700', 'dot' => 'bg-yellow-500'],
-                                        'low'      => ['bg' => 'bg-blue-50', 'border' => 'border-blue-200', 'text' => 'text-blue-800', 'badge' => 'bg-blue-100 text-blue-700', 'dot' => 'bg-blue-500'],
-                                        'info'     => ['bg' => 'bg-gray-50', 'border' => 'border-gray-200', 'text' => 'text-gray-600', 'badge' => 'bg-gray-100 text-gray-600', 'dot' => 'bg-gray-400'],
-                                    ];
-                                    $sc = $sevColors[$sev] ?? $sevColors['info'];
-                                ?>
-                                <div class="<?= "{$sc['bg']} px-6 py-4 finding-enter" ?>" style="animation-delay: <?= $i * 0.05 ?>s">
-                                    <div class="flex items-start gap-3">
-                                        <span class="w-2 h-2 rounded-full mt-2 shrink-0 <?= $sc['dot'] ?>"></span>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-start justify-between gap-3">
-                                                <p class="<?= "text-sm font-medium {$sc['text']}" ?>"><?= htmlspecialchars($finding['message'] ?? '') ?></p>
-                                                <span class="<?= "shrink-0 px-2 py-0.5 rounded text-xs font-semibold {$sc['badge']}" ?>"><?= strtoupper($sev) ?></span>
-                                            </div>
-                                            <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                                                <span class="truncate max-w-xs" title="<?= htmlspecialchars($finding['file'] ?? '') ?>"><?= htmlspecialchars(basename($finding['file'] ?? '')) ?></span>
-                                                <?php if (!empty($finding['line'])): ?><span>Line <?= (int)$finding['line'] ?></span><?php endif; ?>
-                                                <span class="text-slate-400"><?= htmlspecialchars($finding['pattern'] ?? '') ?></span>
-                                            </div>
-                                            <?php if (!empty($finding['file'])): ?>
-                                            <p class="mt-1 text-xs text-slate-400 font-mono truncate" title="<?= htmlspecialchars($finding['file']) ?>"><?= htmlspecialchars($finding['file']) ?></p>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <?php endforeach; ?>
-                            </div>
-                            <?php if (count($findings) > 100): ?>
-                            <div class="px-6 py-4 bg-slate-50 text-center text-sm text-slate-500">+ <?= count($findings) - 100 ?> more findings.</div>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                <?php else: ?>
+            <div id="scanResults" class="lg:col-span-2 space-y-6">
+                <?php if (!$scanResult && !$scanError && !$scanRunning): ?>
                     <!-- Empty State -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center animate-slide-up">
                         <div class="w-20 h-20 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
@@ -568,6 +668,54 @@ if (file_exists($mergedFile)) {
                             <p class="text-xs text-slate-500">WordPress & Laravel specific configuration and exposure checks.</p>
                         </div>
                     </div>
+
+                    <!-- Progress UI (hidden by default, shown via JS) -->
+                    <div id="scanProgress" class="hidden">
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center animate-slide-up">
+                            <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                                <svg class="w-8 h-8 text-indigo-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-semibold text-slate-900 mb-1" id="progressTitle">Scanning in Progress...</h3>
+                            <p class="text-sm text-slate-500 mb-6" id="progressPhase">Analyzing files for threats</p>
+
+                            <!-- Progress bar -->
+                            <div class="max-w-lg mx-auto mb-6">
+                                <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                    <div id="progressBar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Stats -->
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-lg mx-auto mb-4">
+                                <div class="bg-indigo-50 rounded-xl p-3">
+                                    <div class="text-xl font-bold text-indigo-600" id="progressFiles">0</div>
+                                    <div class="text-xs text-indigo-500">Files Scanned</div>
+                                </div>
+                                <div class="bg-slate-50 rounded-xl p-3">
+                                    <div class="text-xl font-bold text-slate-600" id="progressFindings">0</div>
+                                    <div class="text-xs text-slate-500">Findings</div>
+                                </div>
+                                <div class="bg-amber-50 rounded-xl p-3">
+                                    <div class="text-xl font-bold text-amber-600" id="progressSkipped">0</div>
+                                    <div class="text-xs text-amber-500">Skipped</div>
+                                </div>
+                                <div class="bg-emerald-50 rounded-xl p-3">
+                                    <div class="text-xl font-bold text-emerald-600" id="progressElapsed">0s</div>
+                                    <div class="text-xs text-emerald-500">Elapsed</div>
+                                </div>
+                            </div>
+
+                            <!-- Current file -->
+                            <div class="max-w-lg mx-auto">
+                                <p class="text-xs text-slate-400 truncate" id="progressFile">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results container (populated by JS) -->
+                    <div id="scanResultsContent"></div>
                 <?php endif; ?>
             </div>
         </div>
@@ -585,15 +733,176 @@ if (file_exists($mergedFile)) {
     </footer>
 
     <script>
+        // ---- Async Scan ----
+        let scanPollTimer = null;
+
+        function showProgress() {
+            document.getElementById('scanResultsContent').innerHTML = '';
+            document.getElementById('scanProgress').classList.remove('hidden');
+        }
+
+        function updateProgressUI(data) {
+            document.getElementById('progressFiles').textContent = data.files_scanned || 0;
+            document.getElementById('progressFindings').textContent = data.findings_count || 0;
+            document.getElementById('progressSkipped').textContent = data.files_skipped || 0;
+
+            const elapsed = (data.elapsed_ms || 0) / 1000;
+            document.getElementById('progressElapsed').textContent = elapsed < 60
+                ? Math.round(elapsed) + 's'
+                : Math.floor(elapsed / 60) + 'm ' + Math.round(elapsed % 60) + 's';
+
+            document.getElementById('progressFile').textContent = data.current_file || '-';
+
+            // Phase text
+            const phaseMap = {
+                'starting': 'Initializing scan...',
+                'cms_scan': 'Running CMS-specific checks...',
+                'file_scan': 'Scanning files for malware and vulnerabilities...',
+                'vuln_scan': 'Checking vulnerability patterns...',
+                'db_scan': 'Analyzing configuration files...',
+                'completed': 'Finalizing results...',
+            };
+            document.getElementById('progressPhase').textContent = phaseMap[data.phase] || 'Scanning...';
+
+            // Progress bar (indeterminate animation when < 100 files)
+            const bar = document.getElementById('progressBar');
+            const files = data.files_scanned || 0;
+            if (files < 100) {
+                bar.classList.add('animate-scan');
+                bar.style.width = Math.max(5, files) + '%';
+            } else {
+                bar.classList.remove('animate-scan');
+                bar.style.width = Math.min(95, files % 5000 / 50) + '%';
+            }
+        }
+
+        async function startScan() {
+            const form = document.getElementById('scanForm');
+            const btn = document.getElementById('scanBtn');
+            const btnText = document.getElementById('scanBtnText');
+
+            btn.disabled = true;
+            btnText.innerHTML = `<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Starting...`;
+
+            const formData = new FormData(form);
+            const payload = {
+                scan_path: formData.get('scan_path'),
+                scan_type: formData.get('scan_type'),
+                scan_depth: formData.get('scan_depth'),
+                check_backup: formData.has('check_backup'),
+                check_perm: formData.has('check_perm'),
+            };
+
+            try {
+                const res = await fetch('?api=start_scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to start scan');
+                }
+
+                showProgress();
+                btnText.innerHTML = `<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Scanning...`;
+
+                // Start polling
+                pollProgress(data.token);
+
+            } catch (err) {
+                document.getElementById('scanResults').innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-2xl p-6 animate-slide-up">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-red-800">Scan Failed</h3>
+                                <p class="text-sm text-red-600 mt-1">${err.message}</p>
+                            </div>
+                        </div>
+                    </div>`;
+                btn.disabled = false;
+                btnText.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> Start Scan`;
+            }
+        }
+
+        async function pollProgress(token) {
+            if (scanPollTimer) {
+                clearTimeout(scanPollTimer);
+                scanPollTimer = null;
+            }
+
+            try {
+                const res = await fetch('?api=scan_progress&token=' + token);
+                const data = await res.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Progress check failed');
+                }
+
+                if (data.status === 'completed') {
+                    // Fetch results
+                    await fetchResults(token);
+                    return;
+                }
+
+                updateProgressUI(data);
+
+                // Poll again in 1 second
+                scanPollTimer = setTimeout(() => pollProgress(token), 1000);
+
+            } catch (err) {
+                console.error('Poll error:', err);
+                scanPollTimer = setTimeout(() => pollProgress(token), 2000);
+            }
+        }
+
+        async function fetchResults(token) {
+            try {
+                const res = await fetch('?api=scan_results&token=' + token);
+                const data = await res.json();
+
+                // Hide progress, show results
+                document.getElementById('scanProgress').classList.add('hidden');
+
+                if (data.success && data.html) {
+                    document.getElementById('scanResultsContent').innerHTML = data.html;
+                } else {
+                    throw new Error(data.error || 'Failed to load results');
+                }
+
+                // Reset button
+                const btn = document.getElementById('scanBtn');
+                const btnText = document.getElementById('scanBtnText');
+                btn.disabled = false;
+                btnText.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> Start Scan`;
+
+            } catch (err) {
+                document.getElementById('scanProgress').classList.add('hidden');
+                document.getElementById('scanResultsContent').innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-2xl p-6 animate-slide-up">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-red-800">Failed to Load Results</h3>
+                                <p class="text-sm text-red-600 mt-1">${err.message}</p>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+        }
+
         // Form submission
         const form = document.getElementById('scanForm');
-        const btn = document.getElementById('scanBtn');
-        const btnText = document.getElementById('scanBtnText');
-
         if (form) {
-            form.addEventListener('submit', function() {
-                btn.disabled = true;
-                btnText.innerHTML = `<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Scanning...`;
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                startScan();
             });
         }
 
@@ -622,7 +931,6 @@ if (file_exists($mergedFile)) {
                     document.getElementById('totalCount').textContent = data.total;
                     document.getElementById('lastUpdate').textContent = data.last_update;
 
-                    // Flash effect on card
                     const card = document.getElementById('rulesStatus');
                     card.classList.add('animate-slide-up');
                     setTimeout(() => card.classList.remove('animate-slide-up'), 500);
@@ -660,7 +968,6 @@ if (file_exists($mergedFile)) {
                     log.textContent += `  Total: ${data.total} patterns\n`;
                     log.textContent += `  Last update: ${data.last_update}\n`;
 
-                    // Update status display
                     document.getElementById('builtinCount').textContent = data.builtin;
                     document.getElementById('externalCount').textContent = data.external;
                     document.getElementById('totalCount').textContent = data.total;
